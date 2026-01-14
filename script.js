@@ -591,6 +591,237 @@ function copyLocation() {
   }
 }
 
+/* ---------- Dispatch system (local demo + optional Firebase) ---------- */
+// Utility: generate a simple id
+function genId(prefix='dispatch'){
+  return prefix + '-' + Math.random().toString(36).slice(2,9);
+}
+
+// Distance (km) between two lat/lon (haversine)
+function distanceKm(lat1,lon1,lat2,lon2){
+  function toRad(v){return v*Math.PI/180}
+  const R=6371;
+  const dLat=toRad(lat2-lat1); const dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+// Local backend using localStorage + BroadcastChannel for same-origin tabs
+const bc = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('sahaya-dispatch') : null;
+
+function saveDispatchLocal(id, obj){
+  localStorage.setItem('dispatch:'+id, JSON.stringify(obj));
+  bc?.postMessage({id, obj});
+}
+
+function readDispatchLocal(id){
+  const raw = localStorage.getItem('dispatch:'+id);
+  return raw ? JSON.parse(raw) : null;
+}
+
+function createDispatch(service){
+  const id = genId(service);
+  const userLoc = { lat: localStorage.getItem('userLat')||null, lon: localStorage.getItem('userLon')||null };
+  const obj = { id, service, status: 'requested', created: Date.now(), userLat: userLoc.lat, userLon: userLoc.lon };
+  saveDispatchLocal(id, obj);
+  return obj;
+}
+
+function updateDispatch(id, updates){
+  const cur = readDispatchLocal(id) || {};
+  const merged = Object.assign({}, cur, updates, { updated: Date.now() });
+  saveDispatchLocal(id, merged);
+}
+
+// subscribe to updates for a dispatch id; callback receives object
+function subscribeDispatch(id, cb){
+  // initial
+  cb(readDispatchLocal(id));
+  // listen to BroadcastChannel
+  if (bc){
+    const handler = (ev)=>{ if (ev.data && ev.data.id===id) cb(ev.data.obj); };
+    bc.addEventListener('message', handler);
+    return ()=> bc.removeEventListener('message', handler);
+  }
+  // fallback: poll every 3s
+  const i = setInterval(()=> cb(readDispatchLocal(id)), 3000);
+  return ()=> clearInterval(i);
+}
+
+/* ---------- Optional Firebase Realtime integration (client) ---------- */
+let firebaseEnabled = false;
+let firebaseDb = null;
+
+function loadScript(src){
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+
+async function initFirebaseIfConfigured(){
+  // User should place a `firebase-config.js` defining `window.firebaseConfig` (see firebase-config.example.js)
+  if (!window.firebaseConfig) return;
+  try {
+    // load compat SDKs
+    await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js');
+    firebase.initializeApp(window.firebaseConfig);
+    firebaseDb = firebase.database();
+    firebaseEnabled = true;
+    console.log('Firebase initialized for realtime dispatches');
+  } catch (e){
+    console.warn('Failed to load Firebase SDKs', e);
+  }
+}
+
+function firebaseWriteDispatch(id, obj){
+  if (!firebaseEnabled || !firebaseDb) return;
+  try { firebaseDb.ref('dispatches/' + id).set(obj); } catch (e){ console.warn(e); }
+}
+
+function firebaseSubscribeDispatch(id, cb){
+  if (!firebaseEnabled || !firebaseDb) return null;
+  const ref = firebaseDb.ref('dispatches/' + id);
+  const listener = ref.on('value', snap => cb(snap.val()));
+  return ()=> ref.off('value', listener);
+}
+
+// Show a browser notification if permission is granted (fallback to alert)
+function showBrowserNotification(title, body){
+  if (Notification && Notification.permission === 'granted'){
+    try { new Notification(title, { body }); return; } catch(e){}
+  }
+  // fallback in-page alert
+  try { alert(title + '\n' + body); } catch(e){}
+}
+
+// Request notification permission once on page load for emergency UI
+document.addEventListener('DOMContentLoaded', function(){
+  if ('Notification' in window && Notification.permission === 'default'){
+    // don't spam — ask only on emergency page
+    if (document.body.dataset.page === 'emergency'){
+      try { Notification.requestPermission(); } catch(e){}
+    }
+  }
+  // init firebase if user added config
+  initFirebaseIfConfigured().then(()=>{
+    // if firebase enabled, rewrite local create/update to also push
+    if (firebaseEnabled){
+      // override saveDispatchLocal to also write to firebase
+      const oldSave = saveDispatchLocal;
+      saveDispatchLocal = function(id,obj){ oldSave(id,obj); firebaseWriteDispatch(id,obj); };
+    }
+  });
+});
+
+// Enhance subscribeDispatch to use Firebase if available for cross-device updates
+const _subscribeDispatch = subscribeDispatch;
+subscribeDispatch = function(id, cb){
+  if (firebaseEnabled){
+    // initial read then subscribe
+    const unsubFirebase = firebaseSubscribeDispatch(id, (obj)=> cb(obj));
+    // also return a function to clean up
+    return ()=> { if (typeof unsubFirebase === 'function') unsubFirebase(); };
+  }
+  return _subscribeDispatch(id, cb);
+};
+
+// wrap showDispatchTracker to show notifications when status changes
+const _showDispatchTracker = showDispatchTracker;
+showDispatchTracker = function(id){
+  let lastStatus = null;
+  const tracker = document.getElementById('dispatchTracker');
+  _showDispatchTracker(id);
+  // monitor updates and notify
+  const unsub = subscribeDispatch(id, (obj)=>{
+    if (!obj) return;
+    if (obj.status && obj.status !== lastStatus){
+      if (obj.status === 'enroute') showBrowserNotification('Responder on the way', `Responder is ${obj.service || ''}`);
+      if (obj.status === 'arrived') showBrowserNotification('Responder arrived', 'Responder has reached the location');
+      if (obj.status === 'cancelled') showBrowserNotification('Dispatch cancelled', 'The dispatch was cancelled');
+      lastStatus = obj.status;
+    }
+  });
+  // automatically unsubscribe when tracker hidden
+  const observer = new MutationObserver(()=>{
+    if (tracker.hidden){ unsub(); observer.disconnect(); }
+  });
+  observer.observe(tracker, { attributes: true, attributeFilter: ['hidden'] });
+  return;
+};
+
+// UI helpers on emergency page
+function initDispatchUI(){
+  const cards = document.querySelectorAll('.emergency-card button');
+  cards.forEach(btn => {
+    btn.addEventListener('click', (e)=>{
+      const card = e.target.closest('.emergency-card');
+      const service = card?.querySelector('h2')?.textContent || 'service';
+      // create dispatch
+      const d = createDispatch(service.replace(/[^a-zA-Z ]/g,'').trim().toLowerCase());
+      showDispatchTracker(d.id);
+      alert('Dispatch requested. Share this link with the responder:\n' + window.location.origin + '/driver.html?dispatch=' + d.id);
+    });
+  });
+
+  // tracker controls
+  const copyBtn = document.getElementById('copyDispatchLink');
+  const cancelBtn = document.getElementById('cancelDispatch');
+  if (copyBtn){ copyBtn.addEventListener('click', ()=>{ const id = document.getElementById('dispatchInfo')?.dataset?.id; if (!id) return; const link = window.location.origin + '/driver.html?dispatch=' + id; navigator.clipboard?.writeText(link).then(()=>alert('Link copied')); }); }
+  if (cancelBtn){ cancelBtn.addEventListener('click', ()=>{ const id = document.getElementById('dispatchInfo')?.dataset?.id; if (!id) return; updateDispatch(id, { status:'cancelled' }); }); }
+}
+
+let currentUnsub = null;
+function showDispatchTracker(id){
+  const tracker = document.getElementById('dispatchTracker');
+  const info = document.getElementById('dispatchInfo');
+  const statusEl = document.getElementById('dispatchStatus');
+  const distEl = document.getElementById('dispatchDistance');
+  const etaEl = document.getElementById('dispatchETA');
+  tracker.hidden = false;
+  info.textContent = 'Dispatch ID: ' + id;
+  info.dataset.id = id;
+
+  if (currentUnsub) currentUnsub();
+  currentUnsub = subscribeDispatch(id, (obj)=>{
+    if (!obj){ statusEl.textContent = 'No updates yet.'; return; }
+    statusEl.textContent = 'Status: ' + (obj.status||'n/a');
+    if (obj.driverLat && obj.driverLon && obj.userLat && obj.userLon){
+      const d = distanceKm(Number(obj.driverLat), Number(obj.driverLon), Number(obj.userLat), Number(obj.userLon));
+      distEl.textContent = 'Distance: ' + d.toFixed(2) + ' km';
+      // assume avg speed 40 km/h -> ETA in minutes
+      const etaMin = (d / 40) * 60;
+      etaEl.textContent = obj.status==='arrived' ? 'Arrived' : 'ETA: ~' + Math.max(1, Math.round(etaMin)) + ' min';
+    } else {
+      distEl.textContent = '';
+      etaEl.textContent = '';
+    }
+    if (obj.status==='arrived'){
+      // auto-hide after short delay
+      setTimeout(()=>{ tracker.hidden = true; }, 8000);
+    }
+  });
+}
+
+// local driver join helper used by driver.html
+function localJoinDispatch(id){
+  // mark responder joined
+  updateDispatch(id, { responderJoined: true, status: 'enroute' });
+}
+
+// expose functions globally used by driver.html
+window.createDispatch = createDispatch;
+window.updateDispatch = updateDispatch;
+window.subscribeDispatch = subscribeDispatch;
+window.showDispatchTracker = showDispatchTracker;
+window.localJoinDispatch = localJoinDispatch;
+
+// init dispatch UI on emergency page
+document.addEventListener('DOMContentLoaded', function(){
+  initDispatchUI();
+});
+
 // First-aid tips: show a random tip and optionally speak it
 const firstAidTips = [
   'If someone is bleeding, apply firm pressure with a clean cloth to control bleeding.',

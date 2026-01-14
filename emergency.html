@@ -28,6 +28,9 @@
         <button type="button" onclick="setLanguage('or')" aria-pressed="false">ଓଡିଆ</button>
       </div>
     </header>
+    <button onclick="playEmergencyGuide()">
+  🔊 Emergency Guide
+</button>
 
     <button id="voiceBtn" type="button" class="btn-voice">
       🔊 Listen instructions
@@ -42,21 +45,26 @@
     <div class="emergency-card red">
       <h2>🚑 Ambulance</h2>
       <p>108</p>
-      <button onclick="callNumber('108')">Call Now</button>
+      <button onclick="callNumber('108'); speakEmergency('ambulance')">
+  🚑 Ambulance
+</button>
     </div>
 
     <div class="emergency-card blue">
       <h2>🚓 Police</h2>
       <p>100</p>
-      <button onclick="callNumber('100')">Call Now</button>
+     <button onclick="callNumber('100'); speakEmergency('police')">
+  🚓 Police
+</button>
     </div>
 
     <div class="emergency-card orange">
       <h2>🔥 Fire Brigade</h2>
       <p>101</p>
-      <button onclick="callNumber('101')">Call Now</button>
+      <button onclick="callNumber('100'); speakEmergency('police')">
+  🚓 Police
+</button>
     </div>
-
     <div class="emergency-card purple">
       <h2>👩 Women Helpline</h2>
       <p>181</p>
@@ -88,6 +96,17 @@
     </div>
 
     </div>
+    <div id="dispatchTracker" class="card" hidden>
+      <h3>Dispatch Tracker</h3>
+      <p id="dispatchInfo">No active dispatch.</p>
+      <p id="dispatchStatus"></p>
+      <p id="dispatchDistance"></p>
+      <p id="dispatchETA"></p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="copyDispatchLink" class="btn-soft">Copy Dispatch Link</button>
+        <button id="cancelDispatch" class="btn-outline">Cancel Dispatch</button>
+      </div>
+    </div>
 
     <script src="script.js"></script>
     <script>
@@ -98,5 +117,101 @@ if ("serviceWorker" in navigator) {
 }
     </script>
   </div>
+  
+<hr>
+
+<!-- Helper Instructions -->
+<div class="helper">
+  
+<script src="emergency.js"></script>
+<script>
+let emergencySpeech = null;
+
+function playEmergencyGuide() {
+  const message = `
+  Welcome to Sahaya Emergency Guide.
+
+  This guide explains how emergency services work on this page.
+
+  The ambulance button directly calls emergency medical services.
+  If tracking is enabled, the ambulance driver updates their location
+  so you can see how far it has reached and estimate arrival time.
+
+  The police button connects you to law enforcement for safety support.
+
+  The fire brigade button helps you reach fire services in case of fire emergencies.
+
+  This guide does not activate any emergency automatically.
+  Actions happen only when you press the service buttons.
+  `;
+
+  // 🔴 STOP previous speech completely
+  window.speechSynthesis.cancel();
+
+  // 🟢 CREATE new speech instance
+  emergencySpeech = new SpeechSynthesisUtterance(message);
+  emergencySpeech.lang = "en-IN";
+  emergencySpeech.rate = 0.95;
+  emergencySpeech.pitch = 1;
+
+  window.speechSynthesis.speak(emergencySpeech);
+}
+</script>
+<script>
+  function speakEmergency(type) {
+    let message = "";
+
+    if (type === "ambulance") {
+      message = `
+      Ambulance emergency activated.
+      Your request has been sent to the nearest available ambulance.
+
+      Live tracking is enabled.
+      The ambulance driver updates their location using a secure mobile device.
+      This helps us track how far the ambulance has reached
+      and estimate the time required to arrive.
+
+      Please stay calm.
+      Keep the patient stable.
+      Medical help is on the way.
+      `;
+    }
+
+    if (type === "police") {
+      message = `
+      Police emergency activated.
+      Your request has been forwarded to the nearest police station.
+
+      Officers are being dispatched to your location.
+      Please stay in a safe place.
+      Avoid confrontation and keep your phone accessible.
+
+      Help and protection are on the way.
+      `;
+    }
+
+    if (type === "fire") {
+      message = `
+      Fire emergency activated.
+      Fire services have been alerted immediately.
+
+      Please move to a safe area.
+      Do not use elevators.
+      If possible, switch off electrical connections.
+
+      Fire brigade is on the way to assist you.
+      `;
+    }
+
+    const speech = new SpeechSynthesisUtterance(message);
+    speech.lang = "en-IN";
+    speech.rate = 0.95;
+    speech.pitch = 1;
+    speech.volume = 1;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(speech);
+  }
+</script>
 </body>
 </html>
