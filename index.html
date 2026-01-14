@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="manifest" href="manifest.json">
+
+  <title>Sahaya – Local Help & Emergency Services</title>
+
+  <meta name="description" content="Sahaya provides quick access to emergency services, hospitals, blood banks, and government schemes for rural and semi-urban users.">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home">
+  <!-- Top navigation inspired by Lets Explore -->
+  <header class="top-nav" aria-label="Main navigation">
+    <div class="top-nav-inner">
+      <div class="top-nav-logo">
+        <div class="top-nav-logo-mark">S</div>
+        <span>Sahaya</span>
+      </div>
+      <nav class="top-nav-menu" aria-label="Primary">
+        <a href="index.html" class="active">Home</a>
+        <a href="hospital.html">Hospitals</a>
+        <a href="blood.html">Blood</a>
+        <a href="emergency.html">Emergency</a>
+        <a href="schemes.html">Schemes</a>
+        <a href="#" class="top-nav-cta">Help &amp; Support</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app" role="main">
+    <!-- Hero layout -->
+    <div class="hero-layout">
+      <section class="hero-main" aria-label="Sahaya emergency introduction">
+        <p class="hero-tag">
+          Live assistance
+          <span>Using your current location</span>
+        </p>
+        <h1 class="hero-title">
+          Smart <span>Emergency Help</span> at your fingertips
+        </h1>
+        <p class="hero-subtitle">
+          Quickly reach ambulance, police or fire services and find nearby hospitals,
+          blood banks and government schemes – with simple language and voice guidance.
+        </p>
+
+        <div class="hero-cta-row">
+          <button
+            type="button"
+            class="btn-accent"
+            onclick="callNumber('112')"
+          >
+            🚨 Start Emergency Help (112)
+          </button>
+          <button
+            type="button"
+            class="btn-primary"
+            onclick="document.getElementById('quick-help').scrollIntoView({behavior:'smooth'})"
+          >
+            ▶ How Sahaya Works
+          </button>
+        </div>
+
+        <div style="margin-top:18px;">
+          <p class="section-title" style="margin-bottom:8px;">Language</p>
+          <div class="language-buttons" role="group" aria-label="Choose language">
+            <button type="button" onclick="setLanguage('en')" aria-pressed="true">English</button>
+            <button type="button" onclick="setLanguage('hi')" aria-pressed="false">हिन्दी</button>
+            <button type="button" onclick="setLanguage('or')" aria-pressed="false">ଓଡିଆ</button>
+          </div>
+
+          <button id="voiceBtn" type="button" class="btn-voice">
+            🔊 Listen instructions
+          </button>
+          <button id="childLockBtn" type="button" class="btn-child-lock lock-btn">
+            🔓 Child Lock OFF
+          </button>
+        </div>
+
+        <!-- Feature grid to fill left column with useful quick actions -->
+        <div class="feature-grid" aria-hidden="false">
+          <button class="feature-card" onclick="navigateTo('hospital.html')">
+            <strong>🏥 Nearby Hospitals</strong>
+            <span>View & call hospitals</span>
+          </button>
+
+          <button class="feature-card" onclick="navigateTo('blood.html')">
+            <strong>🩸 Blood Banks</strong>
+            <span>Find donor centres</span>
+          </button>
+
+          <button class="feature-card" onclick="copyLocation()">
+            <strong>📍 Share Location</strong>
+            <span>Copy live map link</span>
+          </button>
+
+          <button class="feature-card" onclick="showFirstAidTip()">
+            <strong>🩺 First-aid Tip</strong>
+            <span>Quick tip for emergencies</span>
+          </button>
+
+          <div id="firstAidTip" class="tip-box" role="status" aria-live="polite">Need help? Tap "First-aid Tip".</div>
+        </div>
+      </section>
+
+      <section class="hero-visual" aria-label="Live location and preview">
+        <div class="hero-map-card">
+          <p class="section-label">📍 Your live location</p>
+          <div id="userMap" class="map-shell"></div>
+        </div>
+        <div class="hero-image-card">
+          <img
+            src="hero-emergency.svg"
+            alt="Illustration of ambulance, police and emergency helpers"
+            class="hero-illustration"
+            loading="lazy"
+          >
+          <p class="hero-image-caption">
+            Visual preview – replace <code>hero-emergency.png</code> with your own artwork of emergency services.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Immediate emergency buttons -->
+    <section id="quick-help" aria-label="Quick emergency help" style="margin-top:22px;">
+      <p class="section-label">Immediate help</p>
+      <div class="card emergency">
+        <div class="emergency-row">
+          <button
+            type="button"
+            class="btn-accent emergency-ambulance"
+            onclick="callNumber('108')"
+          >
+            🚑 Ambulance
+            <span>Call 108 now</span>
+          </button>
+          <button
+            type="button"
+            class="btn-primary emergency-police"
+            onclick="callNumber('100')"
+          >
+            🚓 Police
+            <span>Call 100 now</span>
+          </button>
+          <button
+            type="button"
+            class="btn-primary emergency-fire"
+            onclick="callNumber('101')"
+          >
+            🔥 Fire Brigade
+            <span>Call 101 now</span>
+          </button>
+        </div>
+        <button
+          type="button"
+          class="btn-outline"
+          onclick="openEmergencyAlertOptions()"
+        >
+          📡 Send emergency alert with my live location
+        </button>
+      </div>
+    </section>
+
+    <!-- Navigation to other emergency services pages -->
+    <section aria-label="Other emergency services" style="margin-top:2px;">
+      <p class="section-label">More help nearby</p>
+      <div class="card">
+        <div class="nav-links">
+          <a href="blood.html">
+            <strong>🩸 Blood Banks</strong>
+            <span>Find nearby blood banks &amp; contacts</span>
+          </a>
+          <a href="hospital.html">
+            <strong>🏥 Hospitals</strong>
+            <span>Government &amp; private hospitals</span>
+          </a>
+          <a href="emergency.html">
+            <strong>📞 Emergency Numbers</strong>
+            <span>National &amp; local helpline list</span>
+          </a>
+          <a href="schemes.html">
+            <strong>🏛️ Govt. Health Schemes</strong>
+            <span>Free / low-cost health support</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+<script src="script.js"></script>
+  <!-- Local voice assistant UI -->
+  <div id="assistant" class="assistant" aria-hidden="false">
+    <button id="assistantToggle" class="assistant-toggle" aria-pressed="false" title="Voice assistant">
+      🤖
+    </button>
+
+    <div id="assistantPanel" class="assistant-panel" hidden>
+      <div class="assistant-header">
+        <strong>SAHAYA Assistant</strong>
+        <button id="assistantClose" class="assistant-close" aria-label="Close">✕</button>
+      </div>
+      <div id="assistantStatus" class="assistant-status">Tap the mic and speak</div>
+      <div id="assistantTranscript" class="assistant-transcript" aria-live="polite"></div>
+      <div id="assistantResponse" class="assistant-response"></div>
+      <div class="assistant-actions">
+        <button id="assistantMic" class="btn-voice">🎤 Start Listening</button>
+        <button id="assistantStop" class="btn-outline" hidden>Stop</button>
+      </div>
+    </div>
+  </div>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(() => console.log("Service Worker Registered"))
+    .catch(err => console.log("Service Worker Failed:", err));
+}
+</script>
+</body>
+</html>
