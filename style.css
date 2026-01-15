@@ -460,7 +460,10 @@ button:active,
 .btn:active {
   transform: translateY(1px);
 }
-
+.locked {
+  pointer-events: none;
+  opacity: 0.5;
+}
 /* ---------- CORE CARDS & SECTIONS ---------- */
 .card {
   background: var(--color-surface);
@@ -536,27 +539,53 @@ button:active,
   color: var(--color-text-main);
 }
 
-.btn-voice {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #f59e0b, #fb923c);
-  color: #ffffff;
-  margin-top: 6px;
-  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.4);
+/* Minimize Instructions & Child Lock buttons */
+#voiceBtn,
+#childLockBtn {
+  padding: 5px 10px;
+  font-size: 12px;
+  height: 32px;
+  border-radius: 6px;
+  min-width: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.btn-child-lock {
-  width: 100%;
-  padding: 9px 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  background: #111827;
-  color: #ffffff;
-  margin-top: 6px;
+/* Colors */
+#voiceBtn {
+  background: #ff9800;
+  color: #fff;
 }
 
+#childLockBtn {
+  background: #555;
+  color: #fff;
+}
+
+/* Container */
+.top-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+/* Reduce icon + text spacing */
+#voiceBtn {
+  background: #ff9800;
+}
+
+#childLockBtn {
+  background: #555;
+  color: #fff;
+}
+
+/* Keep them subtle */
+#voiceBtn:hover,
+#childLockBtn:hover {
+  opacity: 0.9;
+}
 .btn-back {
   display: inline-flex;
   align-items: center;
@@ -783,4 +812,22 @@ select {
   color: rgb(60, 195, 228);
   font-size: 14px;
   cursor: pointer;
+}
+.emergency.locked {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+#setPasswordBtn {
+  background: #2196f3;
+  color: white;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+}
+
+#childLockBtn {
+  background: orange;
+  padding: 8px;
+  border-radius: 6px;
 }

@@ -70,13 +70,20 @@
             <button type="button" onclick="setLanguage('hi')" aria-pressed="false">हिन्दी</button>
             <button type="button" onclick="setLanguage('or')" aria-pressed="false">ଓଡିଆ</button>
           </div>
+          
 
           <button id="voiceBtn" type="button" class="btn-voice">
             🔊 Listen instructions
-          </button>
-          <button id="childLockBtn" type="button" class="btn-child-lock lock-btn">
-            🔓 Child Lock OFF
-          </button>
+         <button id="setPasswordBtn">🔑 Set / Change Child Lock Password</button>
+
+<button id="childLockBtn">🔓 Child Lock OFF</button>
+
+<div id="emergencyButtons" class="emergency">
+  <button>🚑 Ambulance</button>
+  <button>🚓 Police</button>
+  <button>🔥 Fire</button>
+</div>
+      
         </div>
 
         <!-- Feature grid to fill left column with useful quick actions -->
@@ -128,6 +135,7 @@
     <section id="quick-help" aria-label="Quick emergency help" style="margin-top:22px;">
       <p class="section-label">Immediate help</p>
       <div class="card emergency">
+        id="emergencyButtons"
         <div class="emergency-row">
           <button
             type="button"
@@ -154,6 +162,9 @@
             <span>Call 101 now</span>
           </button>
         </div>
+        <div id="emergencyButtons">
+  <!-- Ambulance, Police, Fire buttons -->
+</div>
         <button
           type="button"
           class="btn-outline"
@@ -189,6 +200,51 @@
       </div>
     </section>
   </div>
+ <script>
+let isLocked = false;
+let savedPassword = localStorage.getItem("childLockPassword");
+
+// SET / CHANGE PASSWORD
+document.getElementById("setPasswordBtn").onclick = () => {
+  const newPass = prompt("Set Child Lock password (min 4 characters):");
+
+  if (newPass && newPass.length >= 4) {
+    localStorage.setItem("childLockPassword", newPass);
+    savedPassword = newPass;
+    alert("Password saved successfully!");
+  } else {
+    alert("Password must be at least 4 characters.");
+  }
+};
+
+// CHILD LOCK ON / OFF
+document.getElementById("childLockBtn").onclick = function () {
+
+  if (!savedPassword) {
+    alert("Please set a password first!");
+    return;
+  }
+
+  if (!isLocked) {
+    // TURN ON (no password needed)
+    isLocked = true;
+    document.getElementById("emergencyButtons").classList.add("locked");
+    this.innerText = "🔒 Child Lock ON";
+  } else {
+    // TURN OFF (password required)
+    const entered = prompt("Enter Child Lock password:");
+
+    if (entered === savedPassword) {
+      isLocked = false;
+      document.getElementById("emergencyButtons").classList.remove("locked");
+      this.innerText = "🔓 Child Lock OFF";
+    } else {
+      alert("Incorrect password!");
+    }
+  }
+};
+</script>
+</script>
 <script src="script.js"></script>
   <!-- Local voice assistant UI -->
   <div id="assistant" class="assistant" aria-hidden="false">

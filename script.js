@@ -504,28 +504,18 @@ function updateChildLockUI() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  updateChildLockUI();
+document.getElementById("setPinBtn")?.addEventListener("click", () => {
+  const newPin = prompt("Set Child Lock PIN (4 digits minimum):");
 
-  const btn = document.getElementById("childLockBtn");
-  if (!btn) return;
-
-  btn.addEventListener("click", () => {
-    if (childLock) {
-      const pin = prompt("Enter PIN to unlock:");
-      if (pin === "1234") {
-        childLock = false;
-        localStorage.setItem("childLock", "off");
-      } else {
-        alert("Wrong PIN");
-      }
-    } else {
-      childLock = true;
-      localStorage.setItem("childLock", "on");
-    }
-    updateChildLockUI();
-  });
+  if (newPin && newPin.length >= 4) {
+    localStorage.setItem("childLockPIN", newPin);
+    savedPIN = newPin;
+    alert("Child Lock PIN saved successfully!");
+  } else {
+    alert("PIN must be at least 4 digits.");
+  }
 });
+
 // GET USER LOCATION
 function getUserLocation() {
   if (navigator.geolocation) {
