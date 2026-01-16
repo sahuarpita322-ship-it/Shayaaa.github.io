@@ -35,11 +35,19 @@ const bloodBanks = [
     status: "Available"
   }
 ];
+// ---------- COMMON FUNCTION ----------
+function callNumber(number) {
+  window.location.href = "tel:" + number;
+}
+
+// ---------- HOSPITAL DATA ----------
 const hospitals = [
   {
     name: "MKCG Medical College & Hospital",
     type: "Government",
     address: "Brahmapur, Odisha",
+    lat: 19.314,    // Add actual latitude
+    lng: 84.791,    // Add actual longitude
     hospitalPhone: "06802221111",
     ambulancePhone: "108",
     beds: "Available",
@@ -50,6 +58,8 @@ const hospitals = [
     name: "District Headquarters Hospital (DHH)",
     type: "Government",
     address: "Brahmapur, Odisha",
+    lat: 19.316,
+    lng: 84.790,
     hospitalPhone: "06802224444",
     ambulancePhone: "108",
     beds: "Limited",
@@ -57,9 +67,36 @@ const hospitals = [
     rating: 4.0
   },
   {
+    name: "Astha Hospital",
+    type: "Private",
+    address: "Brahmapur, Odisha",
+    hospitalPhone: "06802233344",
+    ambulancePhone: "9439005555",
+    beds: "Available",
+    doctors: "Available",
+    rating: 4.2,
+    lat: 19.3150,
+    lng: 84.7930
+  },
+  {
+    name: "Ayush Hospital",
+    type: "Private",
+    address: "Brahmapur, Odisha",
+    hospitalPhone: "06802233355",
+    ambulancePhone: "9439006666",
+    beds: "Limited",
+    doctors: "Available",
+    rating: 4.0,
+    lat: 19.3160,
+    lng: 84.7940
+  },
+
+  {
     name: "City Hospital",
     type: "Government",
     address: "Brahmapur, Odisha",
+    lat: 19.312,
+    lng: 84.788,
     hospitalPhone: "06802222222",
     ambulancePhone: "9439001111",
     beds: "Limited",
@@ -70,80 +107,85 @@ const hospitals = [
     name: "Apollo Hospital",
     type: "Private",
     address: "Brahmapur, Odisha",
+    lat: 19.318,
+    lng: 84.792,
     hospitalPhone: "06802233333",
     ambulancePhone: "9439002222",
     beds: "Available",
     doctors: "Limited",
     rating: 4.3
-  },
-  {
-    name: "Life Care Hospital",
-    type: "Private",
-    address: "Brahmapur, Odisha",
-    hospitalPhone: "06802255555",
-    ambulancePhone: "9439003333",
-    beds: "Available",
-    doctors: "Available",
-    rating: 4.2
-  },
-  {
-    name: "Arya Hospital",
-    type: "Private",
-    address: "Brahmapur, Odisha",
-    hospitalPhone: "06802266666",
-    ambulancePhone: "9439004444",
-    beds: "Limited",
-    doctors: "Available",
-    rating: 3.9
   }
+  // Add more hospitals here
 ];
 
+// ---------- HELPER FUNCTIONS ----------
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (R * c).toFixed(2); // distance in km
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
+
+// ---------- SHOW HOSPITALS ----------
 function showHospitals(list) {
   const container = document.getElementById("hospitalList");
   if (!container) return;
 
   container.innerHTML = "";
 
-  list.forEach(h => {
-    container.innerHTML += `
-      <div class="card">
-        <h3>${h.name}</h3>
-        <p>🏥 <b>${h.type}</b></p>
-        <p>📍 ${h.address}</p>
-        <p>🛏 Beds: <b>${h.beds}</b></p>
-        <p>👨‍⚕️ Doctors: <b>${h.doctors}</b></p>
-        <p>⭐ Rating: ${h.rating}</p>
+  // Get user location
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported.");
+    return;
+  }
 
-        <p>📞 Hospital: ${h.hospitalPhone}</p>
-        
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const userLat = pos.coords.latitude;
+    const userLng = pos.coords.longitude;
 
-        <button onclick="callNumber('${h.hospitalPhone}')">
-          📞 Call Hospital
-        </button>
+    list.forEach(h => {
+      const distance = getDistance(userLat, userLng, h.lat, h.lng);
 
-        <button onclick="callNumber('${h.ambulancePhone}')" 
-                style="background:#ef6c00;">
-          🚑 Call Ambulance
-        </button>
-      </div>
-    `;
+      container.innerHTML += `
+        <div class="card">
+          <h3>${h.name}</h3>
+          <p>🏥 ${h.type}</p>
+          <p>📍 ${h.address}</p>
+          <p>🛏 Beds: <b>${h.beds}</b></p>
+          <p>👨‍⚕️ Doctors: <b>${h.doctors}</b></p>
+          <p>⭐ Rating: ${h.rating}</p>
+          <p>📏 Distance: <b>${distance} km</b></p>
+          <p>📞 Hospital: ${h.hospitalPhone}</p>
+          <button onclick="callNumber('${h.hospitalPhone}')">📞 Call Hospital</button>
+          <button onclick="callNumber('${h.ambulancePhone}')" style="background:#ef6c00;">🚑 Call Ambulance</button>
+          <a href="https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${encodeURIComponent(h.address)}" target="_blank" style="color:#2e86de;">🗺️ Get Directions</a>
+        </div>
+      `;
+    });
   });
-
 }
 
+// ---------- FILTER BY TYPE ----------
 function filterHospitals() {
   const type = document.getElementById("typeFilter").value;
   if (type === "all") {
     showHospitals(hospitals);
   } else {
-    showHospitals(
-      hospitals.filter(h => h.type === type)
-    );
+    showHospitals(hospitals.filter(h => h.type === type));
   }
 }
 
+// ---------- INIT ----------
 showHospitals(hospitals);
-
 function callNumber(number) {
   window.location.href = "tel:" + number;
 }
@@ -955,6 +997,7 @@ function initAssistant() {
   stopBtn.addEventListener('click', () => { try { recognition.stop(); } catch (e) {} });
 }
 
+
 function handleAssistantQuery(text, responseEl) {
   const t = text.toLowerCase();
   let reply = '';
@@ -992,6 +1035,142 @@ function handleAssistantQuery(text, responseEl) {
   try { speakText(reply, currentLang === 'hi' ? 'hi-IN' : currentLang === 'or' ? 'or-IN' : 'en-US'); } catch (e) {}
 }
 
+
 document.addEventListener('DOMContentLoaded', function () {
   initAssistant();
-});
+}
+);
+/* ===============================
+   SAHAYA Health Voice Extension
+   Extended Version (Safe Add-on)
+================================ */
+
+(function () {
+  if (!window.handleAssistantQuery) {
+    console.warn("Voice assistant base function not found");
+    return;
+  }
+
+  const originalHandler = window.handleAssistantQuery;
+
+  window.handleAssistantQuery = function (text, responseEl) {
+    let reply = "";
+    const t = text.toLowerCase();
+
+    // 🤢 Vomiting / nausea
+    if (t.includes("vomit") || t.includes("vomiting") || t.includes("nausea")) {
+      reply =
+        "Vomiting can be caused by infection or food issues. Take small sips of water or ORS. Avoid oily food. If vomiting continues or blood appears, consult a doctor.";
+    }
+
+    // 💩 Loose motion / diarrhea
+    else if (
+      t.includes("loose motion") ||
+      t.includes("diarrhea") ||
+      t.includes("diarrhoea")
+    ) {
+      reply =
+        "Loose motion can cause dehydration. Drink ORS frequently and eat light food like rice or banana. If it lasts more than one day or there is weakness, please see a doctor.";
+    }
+
+    // 🤒 Fever
+    else if (t.includes("fever") || t.includes("temperature")) {
+      reply =
+        "Fever indicates infection. Take rest, drink plenty of fluids, and you may take paracetamol. If fever is high or lasts more than two days, consult a doctor.";
+    }
+
+    // 🤧 Cold / cough
+    else if (t.includes("cold") || t.includes("cough")) {
+      reply =
+        "For cold or cough, drink warm fluids and take proper rest. Steam inhalation may help. If cough persists or breathing becomes difficult, consult a doctor.";
+    }
+
+    // 🤕 Headache
+    else if (t.includes("headache") || t.includes("migraine")) {
+      reply =
+        "Headache may be due to stress or dehydration. Rest in a quiet place and drink water. If headache is severe or frequent, consult a doctor.";
+    }
+
+    // 😷 Infection
+    else if (t.includes("infection")) {
+      reply =
+        "Infections may require medical evaluation. Keep the area clean and avoid self-medication with antibiotics. Please consult a doctor for proper treatment.";
+    }
+
+    // 🩹 Skin allergy / itching / rashes
+    else if (
+      t.includes("skin") ||
+      t.includes("allergy") ||
+      t.includes("itching") ||
+      t.includes("rashes")
+    ) {
+      reply =
+        "Skin allergy can be caused by dust, food, or chemicals. Avoid scratching and keep the area clean. If redness or itching increases, please consult a dermatologist.";
+    }
+
+    // 😮‍💨 Breathing problem
+    else if (
+      t.includes("breathing") ||
+      t.includes("shortness of breath")
+    ) {
+      reply =
+        "Breathing difficulty can be serious. Please sit upright and seek medical help immediately. I can help you find nearby hospitals.";
+    }
+
+    // ❤️ Chest pain
+    else if (t.includes("chest pain")) {
+      reply =
+        "Chest pain can be serious. Please seek immediate medical attention. I can help you call an ambulance or locate the nearest hospital.";
+    }
+
+    // 🤕 Injury / bleeding
+    else if (t.includes("injury") || t.includes("bleeding")) {
+      reply =
+        "For injury, apply pressure to stop bleeding and keep the area clean. If bleeding does not stop or pain is severe, visit a hospital immediately.";
+    }
+    // 🤢 Stomach pain
+else if (
+  t.includes("stomach pain") ||
+  t.includes("abdominal pain") ||
+  t.includes("stomach ache")
+) {
+  reply =
+    "Stomach pain may be due to indigestion, gas, or infection. Avoid oily food, drink warm water, and rest. If pain is severe, continuous, or with vomiting or fever, consult a doctor.";
+}
+
+// 🤕 Body pain
+else if (
+  t.includes("body pain") ||
+  t.includes("body ache") ||
+  t.includes("muscle pain")
+) {
+  reply =
+    "Body pain can be caused by tiredness, fever, or infection. Take proper rest, drink fluids, and gentle stretching may help. If pain lasts long or is severe, consult a doctor.";
+}
+
+    // ❓ Help
+    else if (t.includes("help") || t.includes("what can you do")) {
+      reply =
+        "I can help with health advice, emergency services, hospital search, and first aid guidance. Just tell me your problem.";
+    }
+
+    // If nothing matches → old assistant logic
+    else {
+      return originalHandler(text, responseEl);
+    }
+
+    // Show response
+    if (responseEl) responseEl.textContent = reply;
+
+    // Speak response
+    try {
+      const utter = new SpeechSynthesisUtterance(reply);
+      utter.lang = "en-IN";
+      speechSynthesis.speak(utter);
+    } catch (e) {
+      console.warn("Speech synthesis error", e);
+    }
+  };
+})
+();
+
