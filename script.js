@@ -90,6 +90,7 @@ const hospitals = [
     lat: 19.3160,
     lng: 84.7940
   },
+  
 
   {
     name: "City Hospital",
@@ -1173,4 +1174,34 @@ else if (
   };
 })
 ();
+document.addEventListener("DOMContentLoaded", () => {
+
+  const cancelBtn = document.getElementById("cancelDispatchBtn");
+
+  if (!cancelBtn) {
+    console.error("Cancel Dispatch button not found");
+    return;
+  }
+
+  cancelBtn.addEventListener("click", () => {
+
+    const confirmCancel = confirm(
+      "Are you sure you want to cancel the emergency dispatch?"
+    );
+
+    if (!confirmCancel) return;
+
+    // Clear dispatch data
+    localStorage.removeItem("dispatchId");
+    localStorage.removeItem("selectedService");
+
+    // Optional UI feedback
+    alert("Dispatch has been cancelled successfully.");
+
+    // Reload or redirect
+    window.location.reload(); 
+    // OR use: window.location.href = "index.html";
+  });
+  
+});
 
