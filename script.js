@@ -529,35 +529,6 @@ function showSchemes(list) {
 }
 
 /* ---------- LOAD SCHEMES ---------- */
-/* ---------- CHILD LOCK SYSTEM ---------- */
-let childLock = localStorage.getItem("childLock") === "on";
-
-function updateChildLockUI() {
-  const btn = document.getElementById("childLockBtn");
-  const emergencyBtns = document.querySelectorAll(".emergency button");
-
-  if (!btn) return;
-
-  if (childLock) {
-    btn.innerText = "🔒 Child Lock ON";
-    emergencyBtns.forEach(b => b.disabled = true);
-  } else {
-    btn.innerText = "🔓 Child Lock OFF";
-    emergencyBtns.forEach(b => b.disabled = false);
-  }
-}
-
-document.getElementById("setPinBtn")?.addEventListener("click", () => {
-  const newPin = prompt("Set Child Lock PIN (4 digits minimum):");
-
-  if (newPin && newPin.length >= 4) {
-    localStorage.setItem("childLockPIN", newPin);
-    savedPIN = newPin;
-    alert("Child Lock PIN saved successfully!");
-  } else {
-    alert("PIN must be at least 4 digits.");
-  }
-});
 
 // GET USER LOCATION
 function getUserLocation() {
@@ -1204,4 +1175,56 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   
 });
+/************************
+   CHILD LOCK SYSTEM
+************************/
 
+let childLockEnabled = false;
+let childLockPIN = localStorage.getItem("childLockPIN");
+
+// Buttons
+const childLockBtn = document.getElementById("childLockBtn");
+const setPasswordBtn = document.getElementById("setPasswordBtn");
+
+/* SET / CHANGE CHILD LOCK PASSWORD */
+setPasswordBtn.addEventListener("click", () => {
+  const pin = prompt("Set Child Lock Password (min 4 digits):");
+
+  if (!pin || pin.length < 4) {
+    alert("❌ Password must be at least 4 digits");
+    return;
+  }
+
+  localStorage.setItem("childLockPIN", pin);
+  childLockPIN = pin;
+  alert("✅ Child Lock Password Set Successfully");
+});
+
+/* TOGGLE CHILD LOCK */
+childLockBtn.addEventListener("click", () => {
+  if (!childLockPIN) {
+    alert("⚠️ Please set Child Lock Password first");
+    return;
+  }
+
+  childLockEnabled = !childLockEnabled;
+  childLockBtn.innerText = childLockEnabled
+    ? "🔒 Child Lock ON"
+    : "🔓 Child Lock OFF";
+});
+
+/* EMERGENCY CALL FUNCTION (USED BY HTML) */
+function callNumber(number) {
+
+  if (childLockEnabled) {
+    const enteredPIN = prompt("🔒 Child Lock is ON\nEnter password to continue:");
+
+    if (enteredPIN !== childLockPIN) {
+      alert("❌ Wrong Password. Call blocked.");
+      return;
+    }
+  }
+
+  // Allow call
+  window.location.href = "tel:" + number;
+}
