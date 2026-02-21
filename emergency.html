@@ -215,5 +215,25 @@ function playEmergencyGuide() {
     window.speechSynthesis.speak(speech);
   }
 </script>
+<script>
+const map = L.map('map').setView([20.2961, 85.8245], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+let ambulanceMarker = L.marker([20.2961, 85.8245]).addTo(map);
+
+const ws = new WebSocket("ws://localhost:3000");
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.lat && data.lng) {
+    ambulanceMarker.setLatLng([data.lat, data.lng]);
+    map.panTo([data.lat, data.lng]);
+  }
+};
+</script>
 </body>
 </html>

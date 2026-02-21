@@ -25,6 +25,13 @@
         <a href="blood.html">Blood</a>
         <a href="emergency.html">Emergency</a>
         <a href="schemes.html">Schemes</a>
+        <a href="driver.html">Drivers
+          <button>Go to Driver Panel</button>
+        </a>
+        <a href="user.html">
+          <button>Go to User Page</button>
+        </a> 
+      </a>
         <a href="#" class="top-nav-cta">Help &amp; Support</a>
       </nav>
     </div>
@@ -281,6 +288,15 @@ if ("serviceWorker" in navigator) {
         });
     });
   }
+</script>
+<script>
+const ws = new WebSocket("ws://localhost:3000");
+
+ws.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  
+  ambulanceMarker.setLatLng([data.lat, data.lng]);
+};
 </script>
 </body>
 </html>

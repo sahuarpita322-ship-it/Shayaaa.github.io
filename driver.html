@@ -1,114 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Responder - Dispatch Updates</title>
+  <title>Responder Panel</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
+
 <body>
-  <div class="app">
-    <a href="index.html" class="btn-back"><span>⬅</span> Back</a>
-    <h2 style="margin-top:8px;">Responder Dispatch Updates</h2>
 
-    <p>Enter Dispatch ID (from the caller's app) or open the link sent to you.</p>
-    <input id="dispatchIdInput" placeholder="dispatch-..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;margin-top:8px;" />
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button id="joinDispatch" class="btn-primary">Join Dispatch</button>
-      <button id="autoShare" class="btn-soft">Start Auto Share</button>
-    </div>
+<h2>🚑 Driver Panel</h2>
 
-    <div id="driverPanel" class="card" hidden style="margin-top:12px;">
-      <h3>Dispatch: <span id="driverDispatchId"></span></h3>
-      <p id="driverStatus">Status: <em>Not joined</em></p>
-      <p id="driverLocation">Location: —</p>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="sendLocation" class="btn-accent">Share Location Now</button>
-        <button id="markArrived" class="btn-outline">Mark Arrived</button>
-      </div>
-    </div>
-  </div>
+<div id="map" style="height:400px;"></div>
 
-<script src="script.js"></script>
+<div id="requestBox"></div>
+
+<button id="arrivedBtn" style="display:none;">Mark Arrived</button>
+
 <script>
-  // Driver page wiring
-  document.addEventListener('DOMContentLoaded', () => {
-    const join = document.getElementById('joinDispatch');
-    const input = document.getElementById('dispatchIdInput');
-    const auto = document.getElementById('autoShare');
-    const driverPanel = document.getElementById('driverPanel');
-    const driverDispatchId = document.getElementById('driverDispatchId');
-    const driverStatus = document.getElementById('driverStatus');
-    const driverLocation = document.getElementById('driverLocation');
-    const sendLocation = document.getElementById('sendLocation');
-    const markArrived = document.getElementById('markArrived');
+const map = L.map('map').setView([20.2961, 85.8245], 13);
 
-    function joinDispatch(id) {
-      if (!id) return alert('Please enter dispatch id');
-      driverPanel.hidden = false;
-      driverDispatchId.textContent = id;
-      localJoinDispatch(id);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+const socket = new WebSocket("ws://localhost:3000");
+
+let ambulanceMarker;
+let userMarker;
+
+socket.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+
+  if (data.type === "emergency") {
+
+    document.getElementById("requestBox").innerHTML = `
+      <p>🚨 New Emergency Request</p>
+      <button onclick="acceptRequest(${data.lat}, ${data.lng})">Accept</button>
+      <button onclick="rejectRequest()">Reject</button>
+    `;
+
+    userMarker = L.marker([data.lat, data.lng]).addTo(map)
+      .bindPopup("Patient Location")
+      .openPopup();
+
+    map.setView([data.lat, data.lng], 14);
+  }
+};
+
+function acceptRequest(userLat, userLng) {
+
+  socket.send(JSON.stringify({
+    type: "accepted"
+  }));
+
+  document.getElementById("requestBox").innerHTML = "✅ Request Accepted";
+  document.getElementById("arrivedBtn").style.display = "block";
+
+  startTracking();
+}
+
+function rejectRequest() {
+  document.getElementById("requestBox").innerHTML = "❌ Request Rejected";
+}
+
+function startTracking() {
+
+  navigator.geolocation.watchPosition(position => {
+
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+
+    socket.send(JSON.stringify({
+      type: "locationUpdate",
+      lat: lat,
+      lng: lng
+    }));
+
+    if (!ambulanceMarker) {
+      ambulanceMarker = L.marker([lat, lng]).addTo(map)
+        .bindPopup("🚑 Ambulance");
+    } else {
+      ambulanceMarker.setLatLng([lat, lng]);
     }
 
-    join.addEventListener('click', () => joinDispatch(input.value.trim()));
+  }, () => alert("Location permission required"));
+}
 
-    // If opened with ?dispatch=... in URL, auto-join
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('dispatch')) {
-      input.value = params.get('dispatch');
-      joinDispatch(input.value);
-    }
+document.getElementById("arrivedBtn").addEventListener("click", () => {
 
-    sendLocation.addEventListener('click', () => {
-      if (!driverDispatchId.textContent) return;
-      navigator.geolocation.getCurrentPosition(pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        updateDispatch(driverDispatchId.textContent, { driverLat: lat, driverLon: lon, status: 'enroute' });
-        driverStatus.textContent = 'Status: enroute';
-        driverLocation.textContent = `Location: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-      }, () => alert('Unable to get location')); 
-    });
+  socket.send(JSON.stringify({
+    type: "arrived"
+  }));
 
-    let autoInterval = null;
-    auto.addEventListener('click', () => {
-      if (autoInterval) { clearInterval(autoInterval); autoInterval = null; auto.textContent = 'Start Auto Share'; return; }
-      if (!driverDispatchId.textContent) return alert('Join a dispatch first');
-      auto.textContent = 'Stop Auto Share';
-      autoInterval = setInterval(() => {
-        navigator.geolocation.getCurrentPosition(pos => {
-          updateDispatch(driverDispatchId.textContent, { driverLat: pos.coords.latitude, driverLon: pos.coords.longitude, status: 'enroute' });
-          driverStatus.textContent = 'Status: enroute';
-          driverLocation.textContent = `Location: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-        });
-      }, 8000);
-    });
-
-    markArrived.addEventListener('click', () => {
-      if (!driverDispatchId.textContent) return;
-      updateDispatch(driverDispatchId.textContent, { status: 'arrived' });
-      driverStatus.textContent = 'Status: arrived';
-    });
-  });
+  alert("Marked as Arrived");
+});
 </script>
+
 </body>
 </html>
-<input id="token" placeholder="Paste driver token">
-<button onclick="connect()">Start Update</button>
-
-<script>
-let ws;
-
-function connect() {
-  ws = new WebSocket("ws://localhost:8080");
-
-  setInterval(() => {
-    ws.send(JSON.stringify({
-      token: document.getElementById("token").value,
-      lat: 19.3149,
-      lng: 84.7941,
-      distance: "2.1 km",
-      eta: "6 mins"
-    }));
-  }, 5000);
-}
-</script>
