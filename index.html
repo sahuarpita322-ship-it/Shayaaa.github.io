@@ -10,6 +10,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body data-page="home">
   <!-- Top navigation inspired by Lets Explore -->
@@ -26,7 +28,7 @@
         <a href="emergency.html">Emergency</a>
         <a href="schemes.html">Schemes</a>
         <a href="driver.html">Drivers
-          <button>Go to Driver Panel</button>
+        <button>Go to Driver Panel</button>
         </a>
         <a href="user.html">
           <button>Go to User Page</button>
@@ -109,6 +111,29 @@
 
           <div id="firstAidTip" class="tip-box" role="status" aria-live="polite">Need help? Tap "First-aid Tip".</div>
         </div>
+
+        <!-- Location Tracking Services -->
+        <div style="margin-top: 30px;">
+          <p class="section-label" style="margin-bottom: 15px;">📍 Location Tracking Services</p>
+          <div class="feature-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;">
+            <a href="share.html" class="feature-card" style="text-decoration: none; display: block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+              <strong style="font-size: 18px;">📤 Share Location</strong>
+              <span style="opacity: 0.9;">Start sharing your location</span>
+            </a>
+            <a href="track.html" class="feature-card" style="text-decoration: none; display: block; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none;">
+              <strong style="font-size: 18px;">📍 Track Locations</strong>
+              <span style="opacity: 0.9;">View live location tracking</span>
+            </a>
+            <a href="driver.html" class="feature-card" style="text-decoration: none; display: block; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none;">
+              <strong style="font-size: 18px;">🚑 Driver Panel</strong>
+              <span style="opacity: 0.9;">Ambulance driver dashboard</span>
+            </a>
+            <a href="user.html" class="feature-card" style="text-decoration: none; display: block; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border: none;">
+              <strong style="font-size: 18px;">🚨 Emergency Request</strong>
+              <span style="opacity: 0.9;">Request ambulance help</span>
+            </a>
+          </div>
+        </div>
       </section>
 
       <section class="hero-visual" aria-label="Live location and preview">
@@ -174,6 +199,18 @@
         >
           📡 Send emergency alert with my live location
         </button>
+        <button
+          type="button"
+          class="btn-accent"
+          id="sendEmergencyBtn"
+          onclick="sendEmergency()"
+          style="margin-top: 10px; width: 100%;"
+        >
+          🚨 Send Emergency
+        </button>
+        <div id="ambulanceStatus" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;">
+          <p id="statusText">Waiting for driver...</p>
+        </div>
       </div>
     </section>
 
@@ -290,13 +327,162 @@ if ("serviceWorker" in navigator) {
   }
 </script>
 <script>
-const ws = new WebSocket("ws://localhost:3000");
+// WebSocket connection for emergency tracking
+let ws = null;
+let userMap = null;
+let userMarker = null;
+let ambulanceMarker = null;
+let userLocation = null;
 
-ws.onmessage = function(event) {
-  const data = JSON.parse(event.data);
-  
-  ambulanceMarker.setLatLng([data.lat, data.lng]);
-};
+// Initialize WebSocket connection
+function initWebSocket() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    return; // Already connected
+  }
+
+  ws = new WebSocket("ws://localhost:3000");
+
+  ws.onopen = function() {
+    console.log("WebSocket connected");
+  };
+
+  ws.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === "locationUpdate") {
+        // Update ambulance marker position
+        if (ambulanceMarker) {
+          ambulanceMarker.setLatLng([data.lat, data.lng]);
+          if (userMap) {
+            userMap.setView([data.lat, data.lng], 15);
+          }
+        } else if (userMap) {
+          // Create ambulance marker if it doesn't exist
+          ambulanceMarker = L.marker([data.lat, data.lng], {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34]
+            })
+          }).addTo(userMap)
+            .bindPopup("🚑 Ambulance Location")
+            .openPopup();
+        }
+      }
+
+      if (data.type === "accepted") {
+        document.getElementById("statusText").textContent = "✅ Driver accepted! Tracking ambulance...";
+        document.getElementById("ambulanceStatus").style.display = "block";
+        document.getElementById("ambulanceStatus").style.background = "#d4edda";
+      }
+
+      if (data.type === "rejected") {
+        document.getElementById("statusText").textContent = "❌ Request rejected. Trying another driver...";
+        document.getElementById("ambulanceStatus").style.display = "block";
+        document.getElementById("ambulanceStatus").style.background = "#f8d7da";
+      }
+    } catch (err) {
+      console.error("Error parsing WebSocket message:", err);
+    }
+  };
+
+  ws.onerror = function(error) {
+    console.error("WebSocket error:", error);
+  };
+
+  ws.onclose = function() {
+    console.log("WebSocket closed. Reconnecting...");
+    setTimeout(initWebSocket, 3000); // Reconnect after 3 seconds
+  };
+}
+
+// Initialize map
+function initMap() {
+  const mapContainer = document.getElementById("userMap");
+  if (!mapContainer) return;
+
+  // Initialize Leaflet map
+  userMap = L.map("userMap").setView([20.2961, 85.8245], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(userMap);
+
+  // Get user location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        userLocation = { lat, lng };
+
+        userMap.setView([lat, lng], 15);
+        userMarker = L.marker([lat, lng]).addTo(userMap)
+          .bindPopup("📍 Your Location")
+          .openPopup();
+      },
+      function(error) {
+        console.error("Geolocation error:", error);
+        alert("Please enable location access to use emergency tracking");
+      }
+    );
+  }
+}
+
+// Send emergency request
+function sendEmergency() {
+  if (!userLocation) {
+    // Try to get location first
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          sendEmergencyRequest();
+        },
+        function(error) {
+          alert("Please enable location access to send emergency request");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser");
+    }
+    return;
+  }
+
+  sendEmergencyRequest();
+}
+
+function sendEmergencyRequest() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    alert("Connecting to server... Please try again in a moment.");
+    initWebSocket();
+    return;
+  }
+
+  const message = {
+    type: "emergency",
+    lat: userLocation.lat,
+    lng: userLocation.lng
+  };
+
+  ws.send(JSON.stringify(message));
+  console.log("Emergency sent:", message);
+
+  document.getElementById("statusText").textContent = "🚨 Emergency sent! Waiting for driver...";
+  document.getElementById("ambulanceStatus").style.display = "block";
+  document.getElementById("ambulanceStatus").style.background = "#fff3cd";
+}
+
+// Initialize on page load
+window.addEventListener("DOMContentLoaded", function() {
+  initMap();
+  initWebSocket();
+});
 </script>
 </body>
 </html>

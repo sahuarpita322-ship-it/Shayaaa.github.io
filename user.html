@@ -1,70 +1,323 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>User - Emergency Request</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User - Emergency Request</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      min-height: 100vh;
+      padding: 20px;
+      position: relative;
+    }
 
-    <style>
-        body { font-family: Arial; text-align: center; }
-        #map { height: 400px; margin-top: 10px; }
-        button { padding: 10px; margin-top: 10px; }
-    </style>
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .map-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    #map {
+      height: 400px;
+      width: 100%;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .controls {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+
+    .btn {
+      padding: 18px 40px;
+      border: none;
+      border-radius: 15px;
+      font-size: 18px;
+      font-weight: 700;
+      font-family: 'Poppins', sans-serif;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+      color: white;
+      margin-top: 20px;
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(245, 101, 101, 0.5);
+    }
+
+    .btn:active {
+      transform: translateY(-1px);
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 15px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .status.active {
+      display: block;
+    }
+
+    .status.success {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .back-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+  </style>
 </head>
 <body>
-<div id="map" style="height: 400px;"></div>
-<h2>User Emergency Panel</h2>
+  <a href="index.html" class="back-btn">←</a>
 
-<button onclick="requestAmbulance()">Request Ambulance</button>
+  <div class="container">
+    <div class="header">
+      <h1>🚨 Emergency Request</h1>
+      <p>Request ambulance assistance at your location</p>
+    </div>
 
-<div id="map"></div>
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
 
-<script>
-const socket = new WebSocket("ws://localhost:3000");
+    <div class="controls">
+      <button class="btn" onclick="requestAmbulance()">🚑 Request Ambulance</button>
+      <div id="status" class="status"></div>
+    </div>
+  </div>
 
-let map = L.map('map').setView([20.2961, 85.8245], 13);
+  <script>
+    let map = L.map('map').setView([20.2961, 85.8245], 13);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-}).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
 
-let userMarker;
-let ambulanceMarker;
+    let userMarker = null;
+    let ambulanceMarker = null;
 
-function requestAmbulance() {
-    navigator.geolocation.getCurrentPosition(position => {
-
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        userMarker = L.marker([lat, lng]).addTo(map)
-            .bindPopup("You (Patient)").openPopup();
-
-        socket.send(JSON.stringify({
-            type: "emergency",
-            lat: lat,
-            lng: lng
-        }));
-
-        alert("Emergency request sent to nearby ambulances!");
-    });
-}
-
-socket.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-
-    if (data.type === "locationUpdate") {
-
-        if (!ambulanceMarker) {
-            ambulanceMarker = L.marker([data.lat, data.lng]).addTo(map)
-                .bindPopup("Ambulance");
-        } else {
-            ambulanceMarker.setLatLng([data.lat, data.lng]);
-        }
+    // Get WebSocket URL dynamically
+    function getWebSocketURL() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const hostname = window.location.hostname;
+      const port = window.location.port || '3000';
+      return `${protocol}//${hostname}:${port}`;
     }
-};
-</script>
 
+    const socket = new WebSocket(getWebSocketURL());
+
+    socket.onopen = function() {
+      console.log('[USER] ✅ WebSocket connected');
+    };
+
+    socket.onerror = function(error) {
+      console.error('[USER] ❌ WebSocket error:', error);
+    };
+
+    socket.onclose = function() {
+      console.log('[USER] ⚠️ WebSocket closed');
+    };
+
+    function requestAmbulance() {
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          // Remove existing marker
+          if (userMarker) {
+            map.removeLayer(userMarker);
+          }
+
+          userMarker = L.marker([lat, lng], {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41]
+            })
+          }).addTo(map)
+            .bindPopup("📍 You (Patient)")
+            .openPopup();
+
+          map.setView([lat, lng], 15);
+
+          // Send emergency request
+          if (socket.readyState === WebSocket.OPEN) {
+            const requestId = 'emergency_' + Date.now();
+            socket.send(JSON.stringify({
+              type: "emergency",
+              requestId: requestId,
+              lat: lat,
+              lng: lng
+            }));
+
+            updateStatus("Emergency request sent to nearby ambulances!", "success");
+            console.log('[USER] 🚨 Emergency request sent');
+          } else {
+            updateStatus("Not connected to server. Please refresh.", "error");
+          }
+        },
+        function(error) {
+          alert("Please enable location permissions to request ambulance.");
+          console.error('[USER] Geolocation error:', error);
+        }
+      );
+    }
+
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      console.log('[USER] Received:', data.type);
+
+      if (data.type === 'requestAccepted') {
+        updateStatus(`Driver ${data.driverId} accepted your request. Ambulance on the way!`, 'success');
+        console.log('[USER] Request accepted by driver', data.driverId);
+        return;
+      }
+
+      if (data.type === 'requestRejected') {
+        updateStatus('No drivers accepted your request.', 'error');
+        console.log('[USER] Request rejected');
+        return;
+      }
+
+      if (data.type === "locationUpdate") {
+        if (!ambulanceMarker) {
+          ambulanceMarker = L.marker([data.lat, data.lng], {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41]
+            })
+          }).addTo(map)
+            .bindPopup("🚑 Ambulance");
+        } else {
+          ambulanceMarker.setLatLng([data.lat, data.lng], {
+            animate: true,
+            duration: 1.0
+          });
+        }
+
+        updateStatus("Ambulance is on the way! Tracking location...", "success");
+      }
+    };
+
+    function updateStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = `status active ${type}`;
+      
+      setTimeout(() => {
+        statusDiv.classList.remove('active');
+      }, 5000);
+    }
+
+    // Get initial location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          map.setView([lat, lng], 13);
+        },
+        function(error) {
+          console.log('Could not get initial location:', error);
+        }
+      );
+    }
+  </script>
 </body>
 </html>
